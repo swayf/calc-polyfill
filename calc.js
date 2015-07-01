@@ -15,7 +15,7 @@ fillcalc v0.1.0 - (c) Robert Weber, freely distributable under the terms of the 
 	var
 
 	EMPTY = '',
-	CALC_RULE = '^(\\s*?[\\s\\S]*):(\\s*?[\\s\\S]*?((\\-(webkit|moz)\\-)?calc\\(([\\s\\S]+)\\))[\\s\\S]*)?$',
+	CALC_RULE = "^(\\s*?[\\s\\S]*):(\\s*?[\\s\\S]*?((\\-(webkit|moz)\\-)?calc\\(([\\s\\S]+)\\))[\\s\\S]*)?$",
 	CSSRULES = '((\\s*?@media[\\s\\S]*?){([\\s\\S]*?)}\\s*?})|(([\\s\\S]*?){([\\s\\S]*?)})',
 
 	KEYFRAMES = new RegExp('((@.*?keyframes [\\s\\S]*?){([\\s\\S]*?}\\s*?)})', 'gi'),
@@ -182,6 +182,7 @@ fillcalc v0.1.0 - (c) Robert Weber, freely distributable under the terms of the 
 	getStyleSheets = function () {
 
 		var stylesheets = [];
+		var inlineStylesheets = [];
 		var index = 0;
 		var len = doc.styleSheets.length;
 		var stylesheet;
@@ -193,54 +194,64 @@ fillcalc v0.1.0 - (c) Robert Weber, freely distributable under the terms of the 
 			if (stylesheet.href && stylesheet.href !== EMPTY) {
 				stylesheets.push(stylesheet.href);
 			}
+			else {
+				inlineStylesheets.push(stylesheet.cssText);
+			}
 		}
 
-		if ( stylesheets.length > 0 ) {
+		if ( stylesheets.length || inlineStylesheets.length) {
 
-			loadStylesheets(stylesheets);
+			loadStylesheets(stylesheets, inlineStylesheets);
 		}
 	},
 
-	loadStylesheets = function(urls){
+	loadStylesheets = function(urls, inlineCss){
 		var xhr;
 		var index = 0;
 		var len = urls.length;
 		var cssTexts = [];
 
-		if ( win.XMLHttpRequest ) {
+		if (urls.length) {
 
-			xhr = new XMLHttpRequest();
-		}
-		else {
+			if ( win.XMLHttpRequest ) {
 
-			try {
-
-				xhr = new ActiveXObject('Microsoft.XMLHTTP');
-
-			} catch(e) {
-
-				xhr = null;
+				xhr = new XMLHttpRequest();
 			}
-		}
-
-		if (xhr) {
-
-			for (; index < len; index++) {
+			else {
 
 				try {
 
-					xhr.open('GET', urls[index], false);
-					xhr.send();
-
-					if ( xhr.status === 200 ) {
-						cssTexts.push( xhr.responseText );
-					}
+					xhr = new ActiveXObject('Microsoft.XMLHTTP');
 
 				} catch(e) {
-					console.log('Error making request for file ' + urls[index] + ': ' + e.message);
-				}
 
+					xhr = null;
+				}
 			}
+
+			if (xhr) {
+
+				for (; index < len; index++) {
+
+					try {
+
+						xhr.open('GET', urls[index], false);
+						xhr.send();
+
+						if ( xhr.status === 200 ) {
+							cssTexts.push( xhr.responseText );
+						}
+
+					} catch(e) {
+						console.log('Error making request for file ' + urls[index] + ': ' + e.message);
+					}
+
+				}
+			}
+		}
+
+		for (var i = 0, il = inlineCss.length; i < il; ++i) {
+			cssTexts.push(inlineCss[i]);
 		}
 
 		if (cssTexts.length > 0 ) {
